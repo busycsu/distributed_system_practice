@@ -41,6 +41,7 @@ clk = 0
 count = 0
 broad = False
 q = queue.Queue(10)
+tmp = queue.Queue(10)
 
 # This is processing thread or consumer thread, deal with local queue
 class cThread (threading.Thread):
@@ -55,6 +56,8 @@ class cThread (threading.Thread):
 		global balance
 		global count
 		global broad
+		global q
+		global tmp
 
 		while True:
 			# socket set up
@@ -68,7 +71,7 @@ class cThread (threading.Thread):
 				# print("q is not empty, unblock")
 				# threadLock.release()
 				e = q.get()
-
+				print("braod:",broad)
 				# lambort logic
 				if e[0]=="reply":
 					# print("in reply")
@@ -101,20 +104,31 @@ class cThread (threading.Thread):
 					c.close()
 				# combine both release and broadcast
 				elif e[0]=="release" and broad:
-					count = count - 1
-					print("release",count)
+					tmp.put(e)
+					clk = clk+1
+					for i in range (0,2):
+						element = tmp.get()
+						c = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+						c.connect(addr)
+						
+						data = str(e[1])+"/"+str(element[2])+"/"+str(element[3])+"/"+str(element[4])+"/"+str(clk)
+						c.sendall(data.encode('utf-8'))
+						c.close()
+						count = count - 1
 					if count == 0:
 						broad = False
+					
 					# print("in release")
-					c = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-					c.connect(addr)
-					clk = clk+1
-					data = str(e[1])+"/"+str(e[2])+"/"+str(e[3])+"/"+str(e[4])+"/"+str(clk)
-					c.sendall(data.encode('utf-8'))
-					c.close()
+					# c = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+					# c.connect(addr)
+					
+					# data = str(e[1])+"/"+str(e[2])+"/"+str(e[3])+"/"+str(e[4])+"/"+str(clk)
+					# c.sendall(data.encode('utf-8'))
+					# c.close()
 				else:
+					if e[0]=="release":
+						tmp.put(e)
 					# print("done with transfer")
-					pass
 
 				# events.append(val)
 				# threadLock.acquire()
@@ -133,6 +147,7 @@ class pThread (threading.Thread):
 		global balance
 		global count
 		global broad
+		global q
 		s.bind((IP, P))
 		s.listen(1)
 		while True:
@@ -175,15 +190,17 @@ class pThread (threading.Thread):
 					# print(amount)
 					if sender == '1':
 						balance = balance-amount
-				
+				print(broad)
 				# print('sender:',sender)
 				# print('receiver:',receiver)
+				
 				event = ["release", 2, int(msg[1]), int(msg[2]), int(msg[3]), int(msg[4])]
 			elif msg[0] == '2':
 				# print("receive release")
 				event = ["finish", 2, int(msg[1]), int(msg[2]), int(msg[3]), int(msg[4])]
 			# print(event)
 			q.put(event)
+			print("size: ",q.qsize())
 			# print("go back to wait")
 		# for i in range (0,3):
 		# 	print("starting" + self.name)

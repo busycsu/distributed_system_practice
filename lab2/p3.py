@@ -41,7 +41,7 @@ clk = 0
 count = 0
 broad = False
 q = queue.Queue(10)
-
+tmp = queue.Queue(10)
 # This is processing thread or consumer thread, deal with local queue
 class cThread (threading.Thread):
 	def __init__ (self, threadID, name, counter):
@@ -55,6 +55,8 @@ class cThread (threading.Thread):
 		global balance
 		global count
 		global broad
+		global q
+		global tmp
 
 		while True:
 			# socket set up
@@ -101,19 +103,32 @@ class cThread (threading.Thread):
 					c.close()
 				# combine both release and broadcast
 				elif e[0]=="release" and broad:
-					count = count - 1
+					tmp.put(e)
+					clk = clk+1
+					for i in range (0,2):
+						element = tmp.get()
+						c = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+						c.connect(addr)
+						
+						data = str(e[1])+"/"+str(element[2])+"/"+str(element[3])+"/"+str(element[4])+"/"+str(clk)
+						c.sendall(data.encode('utf-8'))
+						c.close()
+						count = count - 1
 					if count == 0:
 						broad = False
-					# print("in release")
-					c = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-					c.connect(addr)
-					clk = clk+1
-					data = str(e[1])+"/"+str(e[2])+"/"+str(e[3])+"/"+str(e[4])+"/"+str(clk)
-					c.sendall(data.encode('utf-8'))
-					c.close()
+					# count = count - 1
+					# if count == 0:
+					# 	broad = False
+					# # print("in release")
+					# c = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+					# c.connect(addr)
+					# clk = clk+1
+					# data = str(e[1])+"/"+str(e[2])+"/"+str(e[3])+"/"+str(e[4])+"/"+str(clk)
+					# c.sendall(data.encode('utf-8'))
+					# c.close()
 				else:
-					# print("done with transfer")
-					pass
+					if e[0]=="release":
+						tmp.put(e)
 
 				# events.append(val)
 				# threadLock.acquire()
