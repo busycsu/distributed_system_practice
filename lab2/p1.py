@@ -5,6 +5,8 @@ import queue
 import socket
 
 #  do we care if i before i receive i send a new message to network process
+def sortFifth(val):
+	return val[4]
 
 
 class Node: 
@@ -33,7 +35,7 @@ P = 5001
 addr = (IP, PORT)
 s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 
-
+helper = []
 blockchain = []
 event = []
 balance = 10
@@ -164,7 +166,7 @@ class pThread (threading.Thread):
 
 			# decode msg
 			msg = message.split("/")
-			clk = max(int(msg[4]), clk) + 1
+			
 			# data = (("receive","'"+msg[0]+"'",0,int(msg[1])))
 			# when receive request
 			if msg[0]=='0':
@@ -175,6 +177,8 @@ class pThread (threading.Thread):
 				if msg[2] == '1':
 					balance = balance+int(msg[1])
 				blockchain.append((sender,receiver,amount))
+				helper.append((1, int(msg[1]), int(msg[2]), int(msg[3]), int(msg[4])))
+				clk = max(int(msg[4]), clk) + 1
 				event = ["reply", 1, int(msg[1]), int(msg[2]), int(msg[3]), int(msg[4])]
 			# when receive reply
 			# when should the balanced be changed
@@ -183,6 +187,8 @@ class pThread (threading.Thread):
 				sender = msg[3]
 				receiver = msg[2]
 				amount = int(msg[1])
+				# c = int(msg[4])
+				# clk = max(clk,c)+1
 				count = count + 1
 				if count == 2:
 					broad = True
@@ -193,10 +199,11 @@ class pThread (threading.Thread):
 				print(broad)
 				# print('sender:',sender)
 				# print('receiver:',receiver)
-				
+				clk = max(int(msg[4]), clk) + 1
 				event = ["release", 2, int(msg[1]), int(msg[2]), int(msg[3]), int(msg[4])]
 			elif msg[0] == '2':
 				# print("receive release")
+				clk = max(int(msg[4]), clk) + 1
 				event = ["finish", 2, int(msg[1]), int(msg[2]), int(msg[3]), int(msg[4])]
 			# print(event)
 			q.put(event)
@@ -239,7 +246,9 @@ while True:
 		# event(type=send, msg type=request, amt=amt, id = id, sendID = 1, clk=clk)
 		if amt<= balance:
 			blockchain.append(('P1', 'P'+process, '$'+str(amt)))
+
 			clk = clk + 1
+			helper.append((0, amt, id, 1, clk))
 			event = (("send", 0, amt, id, 1, clk))
 		# threadLock.release()
 			q.put(event)
@@ -247,11 +256,23 @@ while True:
 			print("Failure")
 	elif x == 2:
 		print(blockchain)
+		print(helper)
+		res = []
+		helper.sort(key = sortFifth)
+		print(helper)
+		for e in helper:
+			sen = 'P'+str(e[3])
+			re = 'P'+str(e[2])
+			am = '$'+str(e[1])
+			res.append((sen,re,am))
+		print(res)  
+
 
 	elif x == 3:
 		print('$', str(balance))
 
-
+	else:
+		print(clk)
 
 
 
